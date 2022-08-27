@@ -1,53 +1,73 @@
-let { writeFile } = require('fs');
-let { join } = require('path');
-let request = require('request');
-let blend = require('@mapbox/blend');
-let argv = require('minimist')(process.argv.slice(2));
+const { promisify } = require('util');
+const { join } = require('path');
+const args = require('minimist')(process.argv.slice(2));
+const { fetchRandomCatWithSaying } = require('./catApi');
+const { isValid } = require('./util');
 
-let {
-    greeting = 'Hello', who = 'You',
-    width = 400, height = 500, color = 'Pink', size = 100,
-} = argv;
+const writeFile = promisify(require('fs').writeFile);
+const blend = promisify(require('@mapbox/blend'));
 
-let firstReq = {
-// https://cataas.com/cat/says/Hi%20There?width=500&amp;height=800&amp;c=Cyan&amp;s=150
-url: 'https://cataas.com/cat/says/' + greeting + '?width=' + width + '&height=' + height + '&color' + color + '&s=' + size, encoding: 'binary'
-};
+const init = async () => {
+  const {
+    greeting = 'Hello',
+    who = 'You',
+    width = 400,
+    height = 500,
+    color = 'Pink',
+    size = 100,
+  } = args;
 
-let secondReq = {
-    url: 'https://cataas.com/cat/says/' + who + '?width=' + width + '&height=' + height + '&color' + color + '&s=' + size, encoding: 'binary'
-};
+  const userInput = {
+    greeting, who, width, height, color, size,
+  };
+  console.log('userInput:', userInput);
 
-request.get(firstReq, (err, res, firstBody) => { 
-    if(err) {
-        console.log(err);
-        return; 
+  if (!isValid(userInput)) {
+    return;
+  }
+
+  const params = {
+    width,
+    height,
+    color,
+    s: size,
+  };
+
+  try {
+    const [image1, image2] = await Promise.all([
+      fetchRandomCatWithSaying(greeting, params),
+      fetchRandomCatWithSaying(who, params),
+    ]);
+    if (!image1 || !image2) {
+      console.log('One or more images could not be fetched');
+      return;
     }
-    
-    console.log('Received response with status:' + res.statusCode);
-    
-    request.get(secondReq, (err, res, secondBody) => { 
-        if(err) {
-            console.log(err);
-            return; 
-        }
-        
-        console.log('Received response with status:' + res.statusCode); 
 
-        blend([ 
-                { buffer: new Buffer(firstBody, 'binary'), x: 0, y:0 }, 
-                { buffer: new Buffer(secondBody, 'binary'), x: width, y: 0 }
-            ], 
-            { width: width * 2, height: height, format: 'jpeg', }, 
-            (err, data) => {
-                const fileOut = join(process.cwd(), `/cat-card.jpg`);
-                
-                writeFile(fileOut, data, 'binary', (err) => { if(err) {
-                    console.log(err);
-                    return; 
-                }
-                
-                console.log("The file was saved!"); });
-            }); 
-        });
-});
+    const blendParams = [
+      { buffer: Buffer.from(image1), x: 0, y: 0 },
+      { buffer: Buffer.from(image2), x: width, y: 0 },
+    ];
+    const blendConfig = {
+      width: width * 2,
+      height,
+      format: 'jpeg',
+    };
+    const data = await blend(blendParams, blendConfig);
+    if (!data) {
+      console.log('There is something wrong with binding images');
+      return;
+    }
+
+    console.log('Successfully bounded the images');
+
+    const savingPath = join(process.cwd(), `cat-card-${+new Date()}.jpg`);
+    console.log('file saving path:', savingPath);
+
+    await writeFile(savingPath, data);
+    console.log('file saved');
+  } catch (error) {
+    console.log('Something went wrong:', error.message);
+  }
+};
+
+init().catch(console.error);
