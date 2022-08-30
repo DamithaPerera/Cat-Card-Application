@@ -1,5 +1,10 @@
 const Joi = require('joi');
 
+/**
+ * Validate request body
+ * @param obj
+ * @returns {boolean}
+ */
 const isValid = (obj) => {
   const schema = Joi.object({
     greeting: Joi.string().alphanum().trim().label('Invalid [greeting] input'),

@@ -1,10 +1,20 @@
 const axios = require('axios');
 
+/**
+ * Create Axios connection
+ * @type {AxiosInstance}
+ */
 const catApi = axios.create({
   baseURL: 'https://cataas.com',
   timeout: 5000,
 });
 
+/**
+ * Generate cat API according to the params
+ * @param saying ex: text to add into the image
+ * @param params ex: image details
+ * @returns {Promise<null|any>}
+ */
 const fetchRandomCatWithSaying = async (saying, params) => {
   try {
     const response = await catApi.get(`cat/says/${saying}`, {

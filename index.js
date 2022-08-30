@@ -7,6 +7,11 @@ const { isValid } = require('./util');
 const writeFile = promisify(require('fs').writeFile);
 const blend = promisify(require('@mapbox/blend'));
 
+/**
+ * Init function
+ * @Description Main function to start initially.
+ * @returns {Promise<void>}
+ */
 const init = async () => {
   const {
     greeting = 'Hello',
@@ -22,6 +27,7 @@ const init = async () => {
   };
   console.log('userInput:', userInput);
 
+
   if (!isValid(userInput)) {
     return;
   }
@@ -34,6 +40,9 @@ const init = async () => {
   };
 
   try {
+
+    // generate two images with give texts and sizes by
+    // calling axios function called fetchRandomCatWithSaying
     const [image1, image2] = await Promise.all([
       fetchRandomCatWithSaying(greeting, params),
       fetchRandomCatWithSaying(who, params),
@@ -43,15 +52,19 @@ const init = async () => {
       return;
     }
 
+    // blend params for each image
     const blendParams = [
       { buffer: Buffer.from(image1), x: 0, y: 0 },
       { buffer: Buffer.from(image2), x: width, y: 0 },
     ];
+
     const blendConfig = {
       width: width * 2,
       height,
       format: 'jpeg',
     };
+
+    // re-encode images with the sizes
     const data = await blend(blendParams, blendConfig);
     if (!data) {
       console.log('There is something wrong with binding images');
@@ -60,9 +73,11 @@ const init = async () => {
 
     console.log('Successfully bounded the images');
 
+    // generate image path with the image name
     const savingPath = join(process.cwd(), `cat-card-${+new Date()}.jpg`);
     console.log('file saving path:', savingPath);
 
+    // save images with current path
     await writeFile(savingPath, data);
     console.log('file saved');
   } catch (error) {
@@ -70,4 +85,8 @@ const init = async () => {
   }
 };
 
+/**
+ * Call init function to start once server starts
+ * else print the error
+ */
 init().catch(console.error);
